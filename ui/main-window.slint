@@ -177,33 +177,33 @@ export component MainWindow inherits Window {
                                 color: #f1f5f9;
                             }
 
-                            Rectangle {
-                                background: #0c1017;
-                                border-color: #243042;
-                                border-width: 1px;
-                                border-radius: 6px;
-                                height: 40px;
+                            HorizontalLayout {
+                                spacing: 8px;
 
-                                HorizontalLayout {
-                                    padding-left: 12px;
-                                    padding-right: 6px;
-                                    spacing: 8px;
+                                Rectangle {
+                                    background: #0c1017;
+                                    border-color: #243042;
+                                    border-width: 1px;
+                                    border-radius: 6px;
+                                    height: 40px;
+                                    horizontal-stretch: 1;
 
                                     Text {
+                                        x: 12px;
+                                        width: parent.width - 24px;
                                         text: root.launch-option;
                                         font-family: "Consolas";
                                         font-size: 14px;
                                         font-weight: 600;
                                         color: #38bdf8;
                                         vertical-alignment: center;
-                                        horizontal-stretch: 1;
                                     }
+                                }
 
-                                    Button {
-                                        text: "复制启动项";
-                                        enabled: !root.busy && !root.modal-visible;
-                                        clicked => { root.copy-launch-option(); }
-                                    }
+                                Button {
+                                    text: "复制启动项";
+                                    enabled: !root.busy && !root.modal-visible;
+                                    clicked => { root.copy-launch-option(); }
                                 }
                             }
 
