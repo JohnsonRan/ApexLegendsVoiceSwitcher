@@ -2,6 +2,10 @@
 
 Rust + Slint 编写的 Windows 小工具。保留 Steam 界面/文本语言，只下载并安装另一种 Apex Legends 官方语音，再生成对应 Steam 启动项。
 
+## 界面预览
+
+![Apex Legends Voice Switcher 界面](docs/ui-preview.png)
+
 ## 功能
 
 - 自动检测 Steam 与 Apex Legends，也可手动选目录。
