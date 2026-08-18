@@ -136,9 +136,12 @@
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="UsernameBox" Header="Steam 用户名"
                                      PlaceholderText="用于打开 SteamCMD 登录" />
-                            <Button x:Name="InstallButton" Grid.Column="1" MinWidth="190"
-                                    Content="下载并安装语音" Style="{StaticResource AccentButtonStyle}"
-                                    VerticalAlignment="Bottom" Click="Install_Click" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                                <Button x:Name="RemoveButton" Content="删除当前语音" Click="Remove_Click" />
+                                <Button x:Name="InstallButton" MinWidth="190"
+                                        Content="下载并安装语音" Style="{StaticResource AccentButtonStyle}"
+                                        Click="Install_Click" />
+                            </StackPanel>
                         </Grid>
                     </Border>
                     <InfoBar x:Name="StatusBar" IsOpen="True" Severity="Informational" Title="准备检查" />

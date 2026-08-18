@@ -7,7 +7,8 @@
 1. 自动检测 Steam 与 Apex Legends，也可以手动选择路径。
 2. 如果运行目录下没有 `steamcmd`，自动从 Valve 官方地址下载并解压，再下载所选语言 Depot。
 3. 优先在游戏 `audio\ship` 中创建硬链接；跨磁盘时尝试符号链接；无法创建链接时才移动文件。
-4. 生成 `+miles_language <language>` 启动项。
+4. 任意时候都可以点击“删除当前语音”，移除本工具记录的语音文件/链接。
+5. 生成 `+miles_language <language>` 启动项。
 
 不创建 `apex_voice_backups`：Steam 当前文本语言的文件保持不变，因此不需要备份。
 
@@ -47,6 +48,8 @@ dotnet publish -c Release -r win-x64
 ```
 
 WinUI 3 的原生运行时不能像普通 .NET DLL 那样简单合并；本项目使用官方支持的 unpackaged + self-contained + single-file 配置，把依赖打进一个 EXE。运行时会由 .NET 单文件加载器解压到类似 `%TEMP%\\.net\\ApexLegendsVoiceSwitcher\\<bundle-hash>\\` 的隔离目录（`.net` 是统一根目录，应用名和 Bundle 哈希用于区分程序及版本）。因此 EXE 较大且某个新版本首次启动可能稍慢，但发布目录不再散落 DLL、`i18n` 文件或 `.pri` 文件。
+
+> 必须保持文件名 `ApexLegendsVoiceSwitcher.exe`。当前 WinUI 3 单文件运行时在 EXE 被重命名后可能于 `Microsoft.UI.Xaml.dll` 中崩溃。
 
 发布目录：
 

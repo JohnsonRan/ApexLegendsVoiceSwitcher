@@ -17,6 +17,7 @@ internal sealed class InstallState
     public string BuildId { get; set; } = "";
     public string GameDirectory { get; set; } = "";
     public string Language { get; set; } = "";
+    public string InstallationMethod { get; set; } = "";
     public List<string> Files { get; set; } = [];
 }
 
@@ -178,6 +179,7 @@ internal static class AppCore
     {
         Directory.CreateDirectory(destination);
         List<string> installed = [];
+        HashSet<string> methods = [];
         string[] files = Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories).ToArray();
         try
         {
@@ -189,9 +191,17 @@ internal static class AppCore
                 if (File.Exists(target))
                     throw new IOException($"目标文件已存在，未覆盖：{relative}。请先在 Steam 验证游戏文件，或选择其他语音语言。");
 
-                if (!CreateHardLink(target, file, IntPtr.Zero))
+                if (CreateHardLink(target, file, IntPtr.Zero))
                 {
-                    try { File.CreateSymbolicLink(target, file); }
+                    methods.Add("硬链接");
+                }
+                else
+                {
+                    try
+                    {
+                        File.CreateSymbolicLink(target, file);
+                        methods.Add("符号链接");
+                    }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
                     {
                         try { File.Move(file, target); }
@@ -200,6 +210,7 @@ internal static class AppCore
                             File.Copy(file, target);
                             File.Delete(file);
                         }
+                        methods.Add("移动文件");
                     }
                 }
                 installed.Add(relative);
@@ -218,6 +229,7 @@ internal static class AppCore
             BuildId = buildId,
             GameDirectory = Path.GetFullPath(Path.Combine(destination, "..", "..")),
             Language = language.Name,
+            InstallationMethod = methods.Count == 1 ? methods.Single() : $"混合方式（{string.Join("、", methods)}）",
             Files = installed
         };
         SaveState(state);

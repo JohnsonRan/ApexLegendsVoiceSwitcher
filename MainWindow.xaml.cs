@@ -122,6 +122,32 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void Remove_Click(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        string game = GamePathBox.Text.Trim();
+        InstallState? state = AppCore.LoadState();
+        if (state is null || !Directory.Exists(AppCore.AudioShipDirectory(game)))
+        {
+            SetStatus(InfoBarSeverity.Informational, "没有可删除的语音", "当前没有由本工具记录的已安装语音文件。");
+            return;
+        }
+        ContentDialogResult result = await ShowDialogAsync(
+            "删除当前语音？",
+            $"将删除 {state.Language} 语音对应的 {state.Files.Count} 个文件/链接。\n安装方式：{(string.IsNullOrWhiteSpace(state.InstallationMethod) ? "旧版本未记录" : state.InstallationMethod)}\n\nSteam 文本语言文件不会受到影响。",
+            "删除语音", "取消");
+        if (result != ContentDialogResult.Primary) return;
+        try
+        {
+            int count = await Task.Run(() => AppCore.RemoveInstalledVoice(state));
+            SetStatus(InfoBarSeverity.Success, "语音已删除", $"已删除 {count} 个文件/链接。 ");
+        }
+        catch (Exception ex)
+        {
+            SetStatus(InfoBarSeverity.Error, "删除失败", ex.Message);
+        }
+    }
+
     private async void Install_Click(object sender, RoutedEventArgs e)
     {
         if (busy || LanguageBox.SelectedItem is not VoiceLanguage language) return;
@@ -192,7 +218,7 @@ public sealed partial class MainWindow : Window
             InstallState state = await Task.Run(() => AppCore.InstallVoiceFiles(
                 source, AppCore.AudioShipDirectory(game), build, language, fileProgress));
             SetStatus(InfoBarSeverity.Success, $"{language.Name}语音安装完成",
-                $"已安装 {state.Files.Count} 个语音文件。复制下方启动项后启动游戏。 ");
+                $"已通过“{state.InstallationMethod}”安装 {state.Files.Count} 个语音文件。复制下方启动项后启动游戏。 ");
             installed = true;
         }
         catch (Exception ex)
