@@ -46,4 +46,8 @@ Slint UI 已编译进 EXE，无 WinUI Runtime、XAML 或 PRI 发布文件。开�
 
 ## 许可
 
-本项目使用 Slint Royalty-free License 2.0 构建桌面应用。第三方依赖仍适用各自许可。
+本项目源代码采用 [MIT License](LICENSE)。
+
+[![Made with Slint](https://raw.githubusercontent.com/slint-ui/slint/master/logo/MadeWithSlint-logo-whitebg.png)](https://slint.dev/)
+
+Slint 框架及其他第三方依赖仍适用各自许可。

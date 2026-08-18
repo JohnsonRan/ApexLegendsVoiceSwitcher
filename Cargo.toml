@@ -2,6 +2,7 @@
 name = "apex-legends-voice-switcher"
 version = "1.0.0"
 edition = "2024"
+license = "MIT"
 build = "build.rs"
 
 [[bin]]
