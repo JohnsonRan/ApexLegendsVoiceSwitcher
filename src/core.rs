@@ -7,7 +7,7 @@ use std::{
     process::Command,
 };
 
-pub const APP_ID: u32 = 1_172_470;
+const APP_ID: u32 = 1_172_470;
 const STEAMCMD_URL: &str = "https://client-update.steamstatic.com/installer/steamcmd.zip";
 
 #[derive(Clone, Copy)]
@@ -76,14 +76,14 @@ pub struct InstallState {
     pub files: Vec<PathBuf>,
 }
 
-pub fn data_directory() -> PathBuf {
+fn data_directory() -> PathBuf {
     env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(env::temp_dir)
         .join("ApexLegendsVoiceSwitcher")
 }
 
-pub fn state_path() -> PathBuf {
+fn state_path() -> PathBuf {
     data_directory().join("installed-voice.json")
 }
 
@@ -96,12 +96,15 @@ pub fn steamcmd_directory() -> PathBuf {
 }
 
 pub fn find_steam_directory() -> Option<PathBuf> {
+    use std::os::windows::process::CommandExt;
+
     for (key, value) in [
         (r"HKCU\Software\Valve\Steam", "SteamPath"),
         (r"HKLM\SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath"),
     ] {
         let Ok(output) = Command::new("reg")
             .args(["query", key, "/v", value])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output()
         else {
             continue;
@@ -113,10 +116,9 @@ pub fn find_steam_directory() -> Option<PathBuf> {
         if let Some(path) = text.lines().find_map(|line| {
             line.split_once("REG_SZ")
                 .map(|(_, v)| PathBuf::from(v.trim()))
-        }) {
-            if path.is_dir() {
-                return Some(path);
-            }
+        }) && path.is_dir()
+        {
+            return Some(path);
         }
     }
     None
@@ -171,10 +173,11 @@ fn steam_libraries(steam: &Path) -> Vec<PathBuf> {
     let mut result = vec![steam.to_path_buf()];
     if let Ok(text) = fs::read_to_string(steam.join("steamapps/libraryfolders.vdf")) {
         for line in text.lines() {
-            if let Some(path) = vdf_value(line, "path").map(PathBuf::from) {
-                if path.is_dir() && !result.iter().any(|p| p == &path) {
-                    result.push(path);
-                }
+            if let Some(path) = vdf_value(line, "path").map(PathBuf::from)
+                && path.is_dir()
+                && !result.iter().any(|p| p == &path)
+            {
+                result.push(path);
             }
         }
     }
@@ -184,7 +187,7 @@ fn steam_libraries(steam: &Path) -> Vec<PathBuf> {
 pub fn audio_ship_directory(game: &Path) -> PathBuf {
     game.join("audio/ship")
 }
-pub fn depot_directory(steamcmd: &Path, depot_id: u32) -> PathBuf {
+fn depot_directory(steamcmd: &Path, depot_id: u32) -> PathBuf {
     steamcmd.join(format!("steamapps/content/app_{APP_ID}/depot_{depot_id}"))
 }
 pub fn depot_ship_directory(steamcmd: &Path, depot_id: u32) -> PathBuf {
@@ -192,7 +195,24 @@ pub fn depot_ship_directory(steamcmd: &Path, depot_id: u32) -> PathBuf {
 }
 
 pub fn depot_exists(steamcmd: &Path, depot_id: u32) -> bool {
-    walk_files(&depot_ship_directory(steamcmd, depot_id)).is_ok_and(|files| !files.is_empty())
+    contains_file(&depot_ship_directory(steamcmd, depot_id)).unwrap_or(false)
+}
+
+fn contains_file(root: &Path) -> Result<bool> {
+    if !root.is_dir() {
+        return Ok(false);
+    }
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            if contains_file(&entry.path())? {
+                return Ok(true);
+            }
+        } else {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub fn read_depot_build_id(steamcmd: &Path, depot_id: u32) -> Option<String> {
@@ -389,7 +409,9 @@ fn walk_files(root: &Path) -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use super::vdf_value;
+    use super::{Result, contains_file, vdf_value};
+    use std::{env, fs};
+
     #[test]
     fn parses_vdf_values() {
         assert_eq!(
@@ -400,5 +422,18 @@ mod tests {
             vdf_value(r#""path" "D:\\SteamLibrary""#, "path").as_deref(),
             Some(r"D:\SteamLibrary")
         );
+    }
+
+    #[test]
+    fn detects_nested_file() -> Result<()> {
+        let root = env::temp_dir().join(format!("apex-voice-test-{}", std::process::id()));
+        let nested = root.join("nested");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&nested)?;
+        assert!(!contains_file(&root)?);
+        fs::write(nested.join("voice.mstr"), [])?;
+        assert!(contains_file(&root)?);
+        fs::remove_dir_all(root)?;
+        Ok(())
     }
 }

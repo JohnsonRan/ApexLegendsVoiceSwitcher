@@ -2,10 +2,12 @@ import { Button, ComboBox, LineEdit, ProgressIndicator, ScrollView } from "std-w
 
 export component MainWindow inherits Window {
     title: "Apex Legends Voice Switcher";
-    min-width: 660px;
-    min-height: 600px;
     preferred-width: 720px;
     preferred-height: 680px;
+    min-width: 720px;
+    max-width: 720px;
+    min-height: 680px;
+    max-height: 680px;
     background: #0f141c;
     default-font-family: "Microsoft YaHei UI";
 
@@ -58,7 +60,7 @@ export component MainWindow inherits Window {
                 }
                 Text {
                     text: "Apex Legends 语音包切换器";
-                    font-size: 18px;
+                    font-size: 20px;
                     font-weight: 700;
                     color: #f8fafc;
                     vertical-alignment: center;
@@ -92,7 +94,7 @@ export component MainWindow inherits Window {
 
                             Text {
                                 text: "语音配置与安装";
-                                font-size: 15px;
+                                font-size: 16px;
                                 font-weight: 700;
                                 color: #f1f5f9;
                             }
@@ -105,7 +107,7 @@ export component MainWindow inherits Window {
                                     spacing: 6px;
                                     Text {
                                         text: "目标语音语言";
-                                        font-size: 13px;
+                                        font-size: 14px;
                                         color: #cbd5e1;
                                     }
                                     ComboBox {
@@ -121,7 +123,7 @@ export component MainWindow inherits Window {
                                     spacing: 6px;
                                     Text {
                                         text: "Steam 用户名 (下载 Depot 时需要)";
-                                        font-size: 13px;
+                                        font-size: 14px;
                                         color: #cbd5e1;
                                     }
                                     LineEdit {
@@ -134,7 +136,7 @@ export component MainWindow inherits Window {
 
                             Text {
                                 text: "说明：密码与 Steam Guard 验证码将在 SteamCMD 终端中输入，本工具不会读取或保存您的密码与验证码。";
-                                font-size: 12px;
+                                font-size: 13px;
                                 color: #94a3b8;
                                 wrap: word-wrap;
                             }
@@ -170,7 +172,7 @@ export component MainWindow inherits Window {
 
                             Text {
                                 text: "Steam 启动项";
-                                font-size: 15px;
+                                font-size: 16px;
                                 font-weight: 700;
                                 color: #f1f5f9;
                             }
@@ -190,7 +192,7 @@ export component MainWindow inherits Window {
                                     Text {
                                         text: root.launch-option;
                                         font-family: "Consolas";
-                                        font-size: 13px;
+                                        font-size: 14px;
                                         font-weight: 600;
                                         color: #38bdf8;
                                         vertical-alignment: center;
@@ -207,7 +209,7 @@ export component MainWindow inherits Window {
 
                             Text {
                                 text: "提示：在 Steam 库中右键 Apex Legends → 属性 → 通用 → 启动选项 中填入该参数即可生效。";
-                                font-size: 12px;
+                                font-size: 13px;
                                 color: #94a3b8;
                                 wrap: word-wrap;
                             }
@@ -225,14 +227,14 @@ export component MainWindow inherits Window {
 
                             Text {
                                 text: "游戏路径与环境";
-                                font-size: 15px;
+                                font-size: 16px;
                                 font-weight: 700;
                                 color: #f1f5f9;
                             }
 
                             Text {
                                 text: "Apex Legends 游戏安装目录 (包含 audio\\ship)";
-                                font-size: 13px;
+                                font-size: 14px;
                                 color: #cbd5e1;
                             }
 
@@ -257,13 +259,13 @@ export component MainWindow inherits Window {
 
                                 Text {
                                     text: "SteamCMD 缓存目录：";
-                                    font-size: 12px;
+                                    font-size: 13px;
                                     color: #94a3b8;
                                 }
 
                                 Text {
                                     text: root.steamcmd-path;
-                                    font-size: 12px;
+                                    font-size: 13px;
                                     color: #cbd5e1;
                                     overflow: elide;
                                 }
@@ -298,14 +300,14 @@ export component MainWindow inherits Window {
 
                     Text {
                         text: root.status-title;
-                        font-size: 13px;
+                        font-size: 14px;
                         font-weight: 700;
                         color: root.busy ? #f59e0b : #38bdf8;
                     }
 
                     Text {
                         text: root.status-message;
-                        font-size: 12px;
+                        font-size: 13px;
                         color: #cbd5e1;
                         wrap: word-wrap;
                     }
@@ -352,7 +354,7 @@ export component MainWindow inherits Window {
                     }
                     Text {
                         text: root.modal-title;
-                        font-size: 16px;
+                        font-size: 17px;
                         font-weight: 700;
                         color: #f8fafc;
                         vertical-alignment: center;
@@ -361,7 +363,7 @@ export component MainWindow inherits Window {
 
                 Text {
                     text: root.modal-message;
-                    font-size: 13px;
+                    font-size: 14px;
                     color: #cbd5e1;
                     wrap: word-wrap;
                 }

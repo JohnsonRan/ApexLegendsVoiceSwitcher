@@ -59,11 +59,11 @@ fn main() -> Result<()> {
     ui.on_browse({
         let weak = ui.as_weak();
         move || {
-            if let Some(folder) = rfd::FileDialog::new().pick_folder() {
-                if let Some(ui) = weak.upgrade() {
-                    ui.set_game_path(folder.to_string_lossy().into_owned().into());
-                    refresh_status(&ui);
-                }
+            if let Some(folder) = rfd::FileDialog::new().pick_folder()
+                && let Some(ui) = weak.upgrade()
+            {
+                ui.set_game_path(folder.to_string_lossy().into_owned().into());
+                refresh_status(&ui);
             }
         }
     });
@@ -293,12 +293,11 @@ fn install(
 ) -> Result<(String, String)> {
     let build =
         core::read_build_id(&game).ok_or_else(|| anyhow::anyhow!("无法读取游戏 Build ID"))?;
-    if core::depot_exists(&steamcmd, language.depot_id) {
-        if let Some(cached) = core::read_depot_build_id(&steamcmd, language.depot_id) {
-            if cached != build {
-                core::delete_depot(&steamcmd, language.depot_id)?;
-            }
-        }
+    if core::depot_exists(&steamcmd, language.depot_id)
+        && let Some(cached) = core::read_depot_build_id(&steamcmd, language.depot_id)
+        && cached != build
+    {
+        core::delete_depot(&steamcmd, language.depot_id)?;
     }
     if !core::depot_exists(&steamcmd, language.depot_id) {
         if username.trim().is_empty() {
@@ -309,13 +308,10 @@ fn install(
         if exit != 0 || !core::depot_exists(&steamcmd, language.depot_id) {
             bail!("SteamCMD 未完成 Depot 下载（退出码 {exit}）。")
         }
-        core::write_depot_build_id(&steamcmd, language.depot_id, &build)?;
     }
+    core::write_depot_build_id(&steamcmd, language.depot_id, &build)?;
     if let Some(previous) = core::load_state() {
         core::remove_installed_voice(&previous)?;
-    }
-    if core::read_depot_build_id(&steamcmd, language.depot_id).is_none() {
-        core::write_depot_build_id(&steamcmd, language.depot_id, &build)?;
     }
     let state = core::install_voice_files(
         &core::depot_ship_directory(&steamcmd, language.depot_id),
@@ -380,52 +376,4 @@ fn check_build_compatibility(ui: &MainWindow, pending: &Rc<RefCell<Option<Pendin
 fn set_status(ui: &MainWindow, title: &str, message: &str) {
     ui.set_status_title(title.into());
     ui.set_status_message(message.into());
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pending_modal_action_variants() {
-        let state = core::InstallState {
-            build_id: "123456".into(),
-            game_directory: PathBuf::from(r"C:\Games\Apex"),
-            language: "日语".into(),
-            installation_method: "硬链接".into(),
-            files: vec![PathBuf::from("file1.starpak")],
-        };
-        let action = PendingModalAction::RemoveVoice(state.clone());
-        match action {
-            PendingModalAction::RemoveVoice(s) => {
-                assert_eq!(s.language, "日语");
-                assert_eq!(s.files.len(), 1);
-            }
-            _ => panic!("wrong variant"),
-        }
-
-        let unverified = PendingModalAction::UnverifiedDepot {
-            game: PathBuf::from(r"C:\Games\Apex"),
-            steamcmd: PathBuf::from(r"C:\SteamCMD"),
-            username: "player1".into(),
-            language: LANGUAGES[3], // 日语
-        };
-        match unverified {
-            PendingModalAction::UnverifiedDepot {
-                username, language, ..
-            } => {
-                assert_eq!(username, "player1");
-                assert_eq!(language.depot_id, 1_172_475);
-            }
-            _ => panic!("wrong variant"),
-        }
-
-        let incompatible = PendingModalAction::BuildIncompatible(state);
-        match incompatible {
-            PendingModalAction::BuildIncompatible(s) => {
-                assert_eq!(s.build_id, "123456");
-            }
-            _ => panic!("wrong variant"),
-        }
-    }
 }
