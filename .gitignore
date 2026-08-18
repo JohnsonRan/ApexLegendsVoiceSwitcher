@@ -1,0 +1,5 @@
+/target/
+/steamcmd/
+*.pdb
+.idea/
+.vscode/

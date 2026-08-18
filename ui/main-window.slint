@@ -1,0 +1,122 @@
+import { Button, ComboBox, LineEdit, ProgressIndicator, ScrollView } from "std-widgets.slint";
+
+export component MainWindow inherits Window {
+    title: "Apex Legends Voice Switcher";
+    width: 760px;
+    height: 760px;
+    background: #f5f5f7;
+    default-font-family: "Segoe UI";
+
+    in-out property <string> game-path;
+    in property <string> steamcmd-path;
+    in-out property <string> username;
+    in property <[string]> languages;
+    in-out property <int> selected-language: 3;
+    in property <string> launch-option;
+    in property <string> status-title: "准备检查";
+    in property <string> status-message;
+    in property <string> install-label: "下载并安装语音";
+    in property <bool> busy: false;
+
+    callback browse();
+    callback language-changed(int);
+    callback copy-launch-option();
+    callback install();
+    callback remove();
+
+    VerticalLayout {
+        padding: 22px;
+        spacing: 12px;
+
+        Text { text: "切换 Apex Legends 游戏语音"; font-size: 26px; font-weight: 700; color: #191919; }
+        Text { text: "保留 Steam 界面文字，只管理本工具安装的官方语音。"; color: #666; }
+
+        ScrollView {
+            VerticalLayout {
+                spacing: 12px;
+
+                Rectangle {
+                    height: 150px;
+                    background: white;
+                    border-color: #ddd;
+                    border-width: 1px;
+                    border-radius: 10px;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 8px;
+                        Text { text: "环境"; font-weight: 700; font-size: 16px; }
+                        Text { text: "Apex Legends 游戏安装目录"; color: #555; }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            LineEdit { text <=> root.game-path; enabled: !root.busy; }
+                            Button { text: "浏览…"; enabled: !root.busy; clicked => { root.browse(); } }
+                        }
+                        Text { text: "SteamCMD 缓存：" + root.steamcmd-path; color: #666; overflow: elide; }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    Rectangle {
+                        background: white;
+                        border-color: #ddd;
+                        border-width: 1px;
+                        border-radius: 10px;
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 9px;
+                            Text { text: "语音与启动项"; font-weight: 700; font-size: 16px; }
+                            Text { text: "语音语言"; color: #555; }
+                            ComboBox {
+                                model: root.languages;
+                                current-index <=> root.selected-language;
+                                enabled: !root.busy;
+                                selected(value) => { root.language-changed(self.current-index); }
+                            }
+                            Text { text: "Steam 启动项"; color: #555; }
+                            Text { text: root.launch-option; font-family: "Consolas"; }
+                            Button { text: "复制启动项"; clicked => { root.copy-launch-option(); } }
+                            Text { text: "无需备份：Steam 文本语言文件保持不变。"; color: #777; font-size: 12px; }
+                        }
+                    }
+                    Rectangle {
+                        background: white;
+                        border-color: #ddd;
+                        border-width: 1px;
+                        border-radius: 10px;
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 9px;
+                            Text { text: "下载与安装"; font-weight: 700; font-size: 16px; }
+                            Text { text: "Steam 用户名"; color: #555; }
+                            LineEdit { text <=> root.username; placeholder-text: "密码与 Steam Guard 在 SteamCMD 输入"; enabled: !root.busy; }
+                            Text {
+                                text: "账号需已领取 Apex Legends。密码与 Steam Guard 只在 SteamCMD 中输入，本工具不会读取或保存。";
+                                wrap: word-wrap;
+                                color: #666;
+                                font-size: 12px;
+                            }
+                            Button { text: root.install-label; enabled: !root.busy; clicked => { root.install(); } }
+                            Button { text: "删除当前语音"; enabled: !root.busy; clicked => { root.remove(); } }
+                            if root.busy: ProgressIndicator { indeterminate: true; }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    min-height: 84px;
+                    background: #e9f2ff;
+                    border-color: #b7d5ff;
+                    border-width: 1px;
+                    border-radius: 10px;
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 5px;
+                        Text { text: root.status-title; font-weight: 700; color: #174a83; }
+                        Text { text: root.status-message; wrap: word-wrap; color: #315b85; }
+                    }
+                }
+            }
+        }
+    }
+}
