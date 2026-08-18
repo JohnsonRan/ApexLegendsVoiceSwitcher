@@ -65,7 +65,7 @@ pub const LANGUAGES: [VoiceLanguage; 9] = [
     },
 ];
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct InstallState {
     pub build_id: String,

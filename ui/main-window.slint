@@ -2,10 +2,12 @@ import { Button, ComboBox, LineEdit, ProgressIndicator, ScrollView } from "std-w
 
 export component MainWindow inherits Window {
     title: "Apex Legends Voice Switcher";
-    width: 760px;
-    height: 760px;
-    background: #f5f5f7;
-    default-font-family: "Segoe UI";
+    min-width: 660px;
+    min-height: 600px;
+    preferred-width: 720px;
+    preferred-height: 680px;
+    background: #0f141c;
+    default-font-family: "Microsoft YaHei UI";
 
     in-out property <string> game-path;
     in property <string> steamcmd-path;
@@ -18,102 +20,370 @@ export component MainWindow inherits Window {
     in property <string> install-label: "下载并安装语音";
     in property <bool> busy: false;
 
+    // Modal dialog properties
+    in property <bool> modal-visible: false;
+    in property <string> modal-title: "";
+    in property <string> modal-message: "";
+    in property <bool> modal-is-danger: false;
+    in property <string> modal-primary-text: "确认";
+    in property <string> modal-secondary-text: "";
+    in property <string> modal-cancel-text: "取消";
+
     callback browse();
     callback language-changed(int);
     callback copy-launch-option();
     callback install();
     callback remove();
 
+    // Modal dialog callbacks
+    callback modal-primary-clicked();
+    callback modal-secondary-clicked();
+    callback modal-cancel-clicked();
+
     VerticalLayout {
-        padding: 22px;
-        spacing: 12px;
+        padding: 20px;
+        spacing: 14px;
 
-        Text { text: "切换 Apex Legends 游戏语音"; font-size: 26px; font-weight: 700; color: #191919; }
-        Text { text: "保留 Steam 界面文字，只管理本工具安装的官方语音。"; color: #666; }
+        // 头部：标题与应用概述
+        VerticalLayout {
+            spacing: 6px;
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                Rectangle {
+                    width: 4px;
+                    height: 22px;
+                    background: #da292a;
+                    border-radius: 2px;
+                }
+                Text {
+                    text: "Apex Legends 语音包切换器";
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                    vertical-alignment: center;
+                }
+            }
+            Text {
+                text: "保留 Steam 界面原有文本语言，在游戏音频目录中安装与切换官方角色语音包。";
+                font-size: 13px;
+                color: #94a3b8;
+            }
+        }
 
+        // 主体区域：统一面板
         ScrollView {
             VerticalLayout {
                 spacing: 12px;
 
                 Rectangle {
-                    height: 150px;
-                    background: white;
-                    border-color: #ddd;
+                    background: #151b26;
+                    border-color: #243042;
                     border-width: 1px;
                     border-radius: 10px;
+
                     VerticalLayout {
-                        padding: 16px;
-                        spacing: 8px;
-                        Text { text: "环境"; font-weight: 700; font-size: 16px; }
-                        Text { text: "Apex Legends 游戏安装目录"; color: #555; }
-                        HorizontalLayout {
-                            spacing: 8px;
-                            LineEdit { text <=> root.game-path; enabled: !root.busy; }
-                            Button { text: "浏览…"; enabled: !root.busy; clicked => { root.browse(); } }
+                        padding: 18px;
+                        spacing: 16px;
+
+                        // 区域 1：语音选择与主要操作
+                        VerticalLayout {
+                            spacing: 12px;
+
+                            Text {
+                                text: "语音配置与安装";
+                                font-size: 15px;
+                                font-weight: 700;
+                                color: #f1f5f9;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 12px;
+
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: "目标语音语言";
+                                        font-size: 13px;
+                                        color: #cbd5e1;
+                                    }
+                                    ComboBox {
+                                        model: root.languages;
+                                        current-index <=> root.selected-language;
+                                        enabled: !root.busy && !root.modal-visible;
+                                        selected(value) => { root.language-changed(self.current-index); }
+                                    }
+                                }
+
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: "Steam 用户名 (下载 Depot 时需要)";
+                                        font-size: 13px;
+                                        color: #cbd5e1;
+                                    }
+                                    LineEdit {
+                                        text <=> root.username;
+                                        placeholder-text: "已入库 Apex 的 Steam 用户名";
+                                        enabled: !root.busy && !root.modal-visible;
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: "说明：密码与 Steam Guard 验证码将在 SteamCMD 终端中输入，本工具不会读取或保存您的密码与验证码。";
+                                font-size: 12px;
+                                color: #94a3b8;
+                                wrap: word-wrap;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 10px;
+                                alignment: start;
+
+                                Button {
+                                    text: root.install-label;
+                                    primary: true;
+                                    enabled: !root.busy && !root.modal-visible;
+                                    clicked => { root.install(); }
+                                }
+
+                                Button {
+                                    text: "删除当前语音";
+                                    enabled: !root.busy && !root.modal-visible;
+                                    clicked => { root.remove(); }
+                                }
+                            }
                         }
-                        Text { text: "SteamCMD 缓存：" + root.steamcmd-path; color: #666; overflow: elide; }
+
+                        // 分隔线
+                        Rectangle {
+                            height: 1px;
+                            background: #222d3e;
+                        }
+
+                        // 区域 2：Steam 启动项
+                        VerticalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "Steam 启动项";
+                                font-size: 15px;
+                                font-weight: 700;
+                                color: #f1f5f9;
+                            }
+
+                            Rectangle {
+                                background: #0c1017;
+                                border-color: #243042;
+                                border-width: 1px;
+                                border-radius: 6px;
+                                height: 40px;
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 6px;
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: root.launch-option;
+                                        font-family: "Consolas";
+                                        font-size: 13px;
+                                        font-weight: 600;
+                                        color: #38bdf8;
+                                        vertical-alignment: center;
+                                        horizontal-stretch: 1;
+                                    }
+
+                                    Button {
+                                        text: "复制启动项";
+                                        enabled: !root.busy && !root.modal-visible;
+                                        clicked => { root.copy-launch-option(); }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: "提示：在 Steam 库中右键 Apex Legends → 属性 → 通用 → 启动选项 中填入该参数即可生效。";
+                                font-size: 12px;
+                                color: #94a3b8;
+                                wrap: word-wrap;
+                            }
+                        }
+
+                        // 分隔线
+                        Rectangle {
+                            height: 1px;
+                            background: #222d3e;
+                        }
+
+                        // 区域 3：路径与运行环境
+                        VerticalLayout {
+                            spacing: 10px;
+
+                            Text {
+                                text: "游戏路径与环境";
+                                font-size: 15px;
+                                font-weight: 700;
+                                color: #f1f5f9;
+                            }
+
+                            Text {
+                                text: "Apex Legends 游戏安装目录 (包含 audio\\ship)";
+                                font-size: 13px;
+                                color: #cbd5e1;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+
+                                LineEdit {
+                                    text <=> root.game-path;
+                                    enabled: !root.busy && !root.modal-visible;
+                                    placeholder-text: "请选择游戏根目录 (如 SteamLibrary\\steamapps\\common\\Apex Legends)";
+                                }
+
+                                Button {
+                                    text: "浏览…";
+                                    enabled: !root.busy && !root.modal-visible;
+                                    clicked => { root.browse(); }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 4px;
+
+                                Text {
+                                    text: "SteamCMD 缓存目录：";
+                                    font-size: 12px;
+                                    color: #94a3b8;
+                                }
+
+                                Text {
+                                    text: root.steamcmd-path;
+                                    font-size: 12px;
+                                    color: #cbd5e1;
+                                    overflow: elide;
+                                }
+                            }
+                        }
                     }
+                }
+            }
+        }
+
+        // 底部固定状态栏
+        Rectangle {
+            background: #121822;
+            border-color: #202a3a;
+            border-width: 1px;
+            border-radius: 8px;
+            min-height: 72px;
+
+            HorizontalLayout {
+                Rectangle {
+                    width: 4px;
+                    background: root.busy ? #f59e0b : #38bdf8;
+                    border-radius: 2px;
+                }
+
+                VerticalLayout {
+                    padding-top: 10px;
+                    padding-bottom: 10px;
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    spacing: 4px;
+
+                    Text {
+                        text: root.status-title;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: root.busy ? #f59e0b : #38bdf8;
+                    }
+
+                    Text {
+                        text: root.status-message;
+                        font-size: 12px;
+                        color: #cbd5e1;
+                        wrap: word-wrap;
+                    }
+
+                    if root.busy: ProgressIndicator {
+                        indeterminate: true;
+                    }
+                }
+            }
+        }
+    }
+
+    // 自定义应用内模态弹窗遮罩
+    if root.modal-visible: Rectangle {
+        background: #000000bd;
+
+        TouchArea {
+            // 拦截所有穿透点击
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 480px;
+            background: #171e2c;
+            border-color: root.modal-is-danger ? #dc2626 : #334155;
+            border-width: 1px;
+            border-radius: 10px;
+            drop-shadow-blur: 16px;
+            drop-shadow-color: #00000099;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Rectangle {
+                        width: 4px;
+                        height: 20px;
+                        background: root.modal-is-danger ? #ef4444 : #38bdf8;
+                        border-radius: 2px;
+                    }
+                    Text {
+                        text: root.modal-title;
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: #f8fafc;
+                        vertical-alignment: center;
+                    }
+                }
+
+                Text {
+                    text: root.modal-message;
+                    font-size: 13px;
+                    color: #cbd5e1;
+                    wrap: word-wrap;
                 }
 
                 HorizontalLayout {
-                    spacing: 12px;
-                    Rectangle {
-                        background: white;
-                        border-color: #ddd;
-                        border-width: 1px;
-                        border-radius: 10px;
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 9px;
-                            Text { text: "语音与启动项"; font-weight: 700; font-size: 16px; }
-                            Text { text: "语音语言"; color: #555; }
-                            ComboBox {
-                                model: root.languages;
-                                current-index <=> root.selected-language;
-                                enabled: !root.busy;
-                                selected(value) => { root.language-changed(self.current-index); }
-                            }
-                            Text { text: "Steam 启动项"; color: #555; }
-                            Text { text: root.launch-option; font-family: "Consolas"; }
-                            Button { text: "复制启动项"; clicked => { root.copy-launch-option(); } }
-                            Text { text: "无需备份：Steam 文本语言文件保持不变。"; color: #777; font-size: 12px; }
-                        }
-                    }
-                    Rectangle {
-                        background: white;
-                        border-color: #ddd;
-                        border-width: 1px;
-                        border-radius: 10px;
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 9px;
-                            Text { text: "下载与安装"; font-weight: 700; font-size: 16px; }
-                            Text { text: "Steam 用户名"; color: #555; }
-                            LineEdit { text <=> root.username; placeholder-text: "密码与 Steam Guard 在 SteamCMD 输入"; enabled: !root.busy; }
-                            Text {
-                                text: "账号需已领取 Apex Legends。密码与 Steam Guard 只在 SteamCMD 中输入，本工具不会读取或保存。";
-                                wrap: word-wrap;
-                                color: #666;
-                                font-size: 12px;
-                            }
-                            Button { text: root.install-label; enabled: !root.busy; clicked => { root.install(); } }
-                            Button { text: "删除当前语音"; enabled: !root.busy; clicked => { root.remove(); } }
-                            if root.busy: ProgressIndicator { indeterminate: true; }
-                        }
-                    }
-                }
+                    spacing: 10px;
+                    alignment: end;
 
-                Rectangle {
-                    min-height: 84px;
-                    background: #e9f2ff;
-                    border-color: #b7d5ff;
-                    border-width: 1px;
-                    border-radius: 10px;
-                    VerticalLayout {
-                        padding: 14px;
-                        spacing: 5px;
-                        Text { text: root.status-title; font-weight: 700; color: #174a83; }
-                        Text { text: root.status-message; wrap: word-wrap; color: #315b85; }
+                    if root.modal-cancel-text != "": Button {
+                        text: root.modal-cancel-text;
+                        clicked => { root.modal-cancel-clicked(); }
+                    }
+
+                    if root.modal-secondary-text != "": Button {
+                        text: root.modal-secondary-text;
+                        clicked => { root.modal-secondary-clicked(); }
+                    }
+
+                    if root.modal-primary-text != "": Button {
+                        text: root.modal-primary-text;
+                        primary: true;
+                        clicked => { root.modal-primary-clicked(); }
                     }
                 }
             }
