@@ -9,13 +9,13 @@ Rust + Slint 编写的 Windows 小工具。保留 Steam 界面/文本语言，�
 ## 功能
 
 - 自动检测 Steam 与 Apex Legends，也可手动选目录。
-- 自动下载 SteamCMD，并用 Steam 账号下载所选语言 Depot。
+- 自动下载 SteamCMD，并在程序右侧内嵌交互面板中下载所选语言 Depot。
 - 优先创建硬链接；失败后尝试符号链接；最后才移动文件。
 - 记录本工具安装的文件，可随时删除。
 - 游戏 Build 变化后自动删除不兼容语音。
 - 生成 `+miles_language <language>` 启动项。
 
-密码和 Steam Guard 验证码只在 SteamCMD 窗口输入，本工具不会读取或保存。账号需已领取免费的 Apex Legends。
+密码和 Steam Guard 验证码通过程序右侧安全输入框直接写入当前 SteamCMD 进程，不会显示在日志中或保存到磁盘。登录失败可在同一面板重试。账号需已领取免费的 Apex Legends。
 
 ## 支持语音
 

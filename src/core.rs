@@ -2,9 +2,13 @@ use anyhow::{Context, Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeSet,
-    env, fs, io,
+    env, fs,
+    io::{self, Read, Write},
     path::{Component, Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
+    sync::mpsc::{self, Receiver},
+    thread,
+    time::Duration,
 };
 
 const APP_ID: u32 = 1_172_470;
@@ -260,7 +264,21 @@ pub fn ensure_steamcmd(directory: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn download_depot(steamcmd: &Path, username: &str, depot_id: u32) -> Result<i32> {
+pub enum SteamCmdInput {
+    Submit(String),
+    Cancel,
+}
+
+pub fn download_depot<F>(
+    steamcmd: &Path,
+    username: &str,
+    depot_id: u32,
+    input: Receiver<SteamCmdInput>,
+    mut output: F,
+) -> Result<i32>
+where
+    F: FnMut(&str),
+{
     use std::os::windows::process::CommandExt;
     if username.is_empty()
         || !username
@@ -276,14 +294,90 @@ pub fn download_depot(steamcmd: &Path, username: &str, depot_id: u32) -> Result<
             "@ShutdownOnFailedCommand 1\n@NoPromptForPassword 0\nlogin {username}\ndownload_depot {APP_ID} {depot_id}\nquit\n"
         ),
     )?;
-    let status = Command::new(steamcmd.join("steamcmd.exe"))
-        .current_dir(steamcmd)
-        .args(["+runscript", script.to_string_lossy().as_ref()])
-        .creation_flags(0x10)
-        .status()
-        .context("无法启动 SteamCMD")?;
+
+    let result = (|| -> Result<i32> {
+        let mut pending_input: Option<String> = None;
+        loop {
+            output("\n[程序] 正在启动 SteamCMD…\n");
+            let mut child = Command::new(steamcmd.join("steamcmd.exe"))
+                .current_dir(steamcmd)
+                .args(["+runscript", script.to_string_lossy().as_ref()])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                .spawn()
+                .context("无法启动 SteamCMD")?;
+            let mut stdin = child.stdin.take().context("无法连接 SteamCMD 输入")?;
+            let (output_sender, output_receiver) = mpsc::channel();
+            pipe_output(
+                child.stdout.take().context("无法读取 SteamCMD 输出")?,
+                output_sender.clone(),
+            );
+            pipe_output(
+                child.stderr.take().context("无法读取 SteamCMD 错误")?,
+                output_sender.clone(),
+            );
+            drop(output_sender);
+
+            if let Some(value) = pending_input.take() {
+                send_steamcmd_input(&mut stdin, &value)?;
+            }
+
+            let exit = loop {
+                while let Ok(bytes) = output_receiver.try_recv() {
+                    output(&String::from_utf8_lossy(&bytes));
+                }
+                while let Ok(event) = input.try_recv() {
+                    match event {
+                        SteamCmdInput::Submit(value) => send_steamcmd_input(&mut stdin, &value)?,
+                        SteamCmdInput::Cancel => {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                            bail!("已取消 SteamCMD 下载。");
+                        }
+                    }
+                }
+                if let Some(status) = child.try_wait()? {
+                    break status.code().unwrap_or(-1);
+                }
+                thread::sleep(Duration::from_millis(30));
+            };
+            drop(stdin);
+            for bytes in output_receiver {
+                output(&String::from_utf8_lossy(&bytes));
+            }
+            if exit == 0 && depot_exists(steamcmd, depot_id) {
+                return Ok(exit);
+            }
+
+            output("\n[程序] 登录或下载失败。请输入密码后重试，或点击取消。\n");
+            pending_input = Some(match input.recv().context("SteamCMD 输入通道已关闭")? {
+                SteamCmdInput::Submit(value) => value,
+                SteamCmdInput::Cancel => bail!("已取消 SteamCMD 下载。"),
+            });
+        }
+    })();
     let _ = fs::remove_file(script);
-    Ok(status.code().unwrap_or(-1))
+    result
+}
+
+fn pipe_output<R: Read + Send + 'static>(mut reader: R, sender: mpsc::Sender<Vec<u8>>) {
+    thread::spawn(move || {
+        let mut buffer = [0; 4096];
+        while let Ok(size) = reader.read(&mut buffer) {
+            if size == 0 || sender.send(buffer[..size].to_vec()).is_err() {
+                break;
+            }
+        }
+    });
+}
+
+fn send_steamcmd_input(stdin: &mut impl Write, value: &str) -> Result<()> {
+    stdin.write_all(value.as_bytes())?;
+    stdin.write_all(b"\r\n")?;
+    stdin.flush()?;
+    Ok(())
 }
 
 pub fn install_voice_files(
@@ -409,7 +503,7 @@ fn walk_files(root: &Path) -> Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Result, contains_file, vdf_value};
+    use super::{Result, contains_file, send_steamcmd_input, vdf_value};
     use std::{env, fs};
 
     #[test]
@@ -434,6 +528,14 @@ mod tests {
         fs::write(nested.join("voice.mstr"), [])?;
         assert!(contains_file(&root)?);
         fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn steamcmd_input_is_one_crlf_terminated_line() -> Result<()> {
+        let mut bytes = Vec::new();
+        send_steamcmd_input(&mut bytes, "secret")?;
+        assert_eq!(bytes, b"secret\r\n");
         Ok(())
     }
 }

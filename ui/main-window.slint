@@ -1,13 +1,13 @@
-import { Button, ComboBox, LineEdit, ProgressIndicator, ScrollView } from "std-widgets.slint";
+import { Button, ComboBox, LineEdit, ProgressIndicator, ScrollView, TextEdit } from "std-widgets.slint";
 
 export component MainWindow inherits Window {
     title: "Apex Legends Voice Switcher";
-    preferred-width: 720px;
-    preferred-height: 680px;
+    preferred-width: 820px;
+    preferred-height: 700px;
     min-width: 720px;
-    max-width: 720px;
+    max-width: 820px;
     min-height: 680px;
-    max-height: 680px;
+    max-height: 700px;
     background: #0f141c;
     default-font-family: "Microsoft YaHei UI";
 
@@ -21,6 +21,8 @@ export component MainWindow inherits Window {
     in property <string> status-message;
     in property <string> install-label: "下载并安装语音";
     in property <bool> busy: false;
+    in property <string> steamcmd-output: "SteamCMD 输出将在下载时显示。";
+    in property <bool> steamcmd-active: false;
 
     // Modal dialog properties
     in property <bool> modal-visible: false;
@@ -36,15 +38,26 @@ export component MainWindow inherits Window {
     callback copy-launch-option();
     callback install();
     callback remove();
+    callback steamcmd-submit(string);
+    callback steamcmd-cancel();
 
     // Modal dialog callbacks
     callback modal-primary-clicked();
     callback modal-secondary-clicked();
     callback modal-cancel-clicked();
 
-    VerticalLayout {
-        padding: 20px;
-        spacing: 14px;
+    Rectangle {
+        left-panel := Rectangle {
+            x: 20px;
+            y: 20px;
+            width: (root.width - 56px) * 0.62;
+            height: root.height - 40px;
+            clip: true;
+
+            VerticalLayout {
+                width: parent.width;
+                height: parent.height;
+                spacing: 14px;
 
         // 头部：标题与应用概述
         VerticalLayout {
@@ -75,6 +88,7 @@ export component MainWindow inherits Window {
 
         // 主体区域：统一面板
         ScrollView {
+            width: parent.width;
             VerticalLayout {
                 spacing: 12px;
 
@@ -99,43 +113,24 @@ export component MainWindow inherits Window {
                                 color: #f1f5f9;
                             }
 
-                            HorizontalLayout {
-                                spacing: 12px;
-
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    spacing: 6px;
-                                    Text {
-                                        text: "目标语音语言";
-                                        font-size: 14px;
-                                        color: #cbd5e1;
-                                    }
-                                    ComboBox {
-                                        model: root.languages;
-                                        current-index <=> root.selected-language;
-                                        enabled: !root.busy && !root.modal-visible;
-                                        selected(value) => { root.language-changed(self.current-index); }
-                                    }
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: "目标语音语言";
+                                    font-size: 14px;
+                                    color: #cbd5e1;
                                 }
-
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    spacing: 6px;
-                                    Text {
-                                        text: "Steam 用户名 (下载 Depot 时需要)";
-                                        font-size: 14px;
-                                        color: #cbd5e1;
-                                    }
-                                    LineEdit {
-                                        text <=> root.username;
-                                        placeholder-text: "已入库 Apex 的 Steam 用户名";
-                                        enabled: !root.busy && !root.modal-visible;
-                                    }
+                                ComboBox {
+                                    min-width: 0px;
+                                    model: root.languages;
+                                    current-index <=> root.selected-language;
+                                    enabled: !root.busy && !root.modal-visible;
+                                    selected(value) => { root.language-changed(self.current-index); }
                                 }
                             }
 
                             Text {
-                                text: "说明：密码与 Steam Guard 验证码将在 SteamCMD 终端中输入，本工具不会读取或保存您的密码与验证码。";
+                                text: "说明：点击下载后，请在右侧提交 Steam 密码及 Steam Guard 验证码。";
                                 font-size: 13px;
                                 color: #94a3b8;
                                 wrap: word-wrap;
@@ -242,6 +237,7 @@ export component MainWindow inherits Window {
                                 spacing: 8px;
 
                                 LineEdit {
+                                    min-width: 0px;
                                     text <=> root.game-path;
                                     enabled: !root.busy && !root.modal-visible;
                                     placeholder-text: "请选择游戏根目录 (如 SteamLibrary\\steamapps\\common\\Apex Legends)";
@@ -305,6 +301,117 @@ export component MainWindow inherits Window {
                     if root.busy: ProgressIndicator {
                         indeterminate: true;
                     }
+                }
+            }
+        }
+        }
+        }
+
+        Rectangle {
+            x: left-panel.x + left-panel.width + 16px;
+            y: 20px;
+            width: root.width - self.x - 20px;
+            height: root.height - 40px;
+            background: #0b1017;
+            border-color: #243042;
+            border-width: 1px;
+            border-radius: 10px;
+
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Rectangle {
+                        width: 4px;
+                        height: 20px;
+                        background: root.steamcmd-active ? #f59e0b : #38bdf8;
+                        border-radius: 2px;
+                    }
+                    Text {
+                        text: "SteamCMD";
+                        font-size: 17px;
+                        font-weight: 700;
+                        color: #f8fafc;
+                        vertical-alignment: center;
+                    }
+                }
+
+                Text {
+                    text: root.steamcmd-active ? "等待登录 · 请在下方提交密码或 Steam Guard 验证码" : "待机 · 下载时将在此处显示 SteamCMD 输出";
+                    font-size: 12px;
+                    color: root.steamcmd-active ? #f59e0b : #94a3b8;
+                    wrap: word-wrap;
+                }
+
+                TextEdit {
+                    horizontal-stretch: 1;
+                    vertical-stretch: 1;
+                    text: root.steamcmd-output;
+                    read-only: true;
+                    enabled: true;
+                    wrap: word-wrap;
+                    font-family: "Consolas";
+                    font-size: 12px;
+                }
+
+                Text {
+                    text: "Steam 用户名";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #cbd5e1;
+                }
+
+                LineEdit {
+                    text <=> root.username;
+                    placeholder-text: "已入库 Apex 的 Steam 用户名";
+                    enabled: !root.busy && !root.modal-visible;
+                }
+
+                Text {
+                    text: "密码 / Steam Guard";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #cbd5e1;
+                }
+
+                secure-input := LineEdit {
+                    input-type: InputType.password;
+                    placeholder-text: root.steamcmd-active ? "输入密码或 Steam Guard 验证码后按回车" : "SteamCMD 未运行";
+                    enabled: root.steamcmd-active;
+                    accepted => {
+                        if self.text != "" {
+                            root.steamcmd-submit(self.text);
+                            self.text = "";
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Button {
+                        text: "提交";
+                        primary: true;
+                        enabled: root.steamcmd-active && secure-input.text != "";
+                        clicked => {
+                            root.steamcmd-submit(secure-input.text);
+                            secure-input.text = "";
+                        }
+                    }
+                    Button {
+                        text: "取消 SteamCMD";
+                        enabled: root.steamcmd-active;
+                        clicked => { root.steamcmd-cancel(); }
+                    }
+                }
+
+                Text {
+                    text: "安全输入只会写入当前 SteamCMD 进程，不会加入右侧日志或保存到磁盘。";
+                    font-size: 11px;
+                    color: #64748b;
+                    wrap: word-wrap;
                 }
             }
         }
