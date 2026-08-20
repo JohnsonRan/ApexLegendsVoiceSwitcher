@@ -354,7 +354,10 @@ fn check_build_compatibility(ui: &MainWindow, pending: &Rc<RefCell<Option<Pendin
     let Some(state) = core::load_state() else {
         return;
     };
-    if core::read_build_id(&state.game_directory).as_deref() == Some(&state.build_id) {
+    if !build_changed(
+        core::read_build_id(&state.game_directory).as_deref(),
+        &state.build_id,
+    ) {
         return;
     }
     *pending.borrow_mut() = Some(PendingModalAction::BuildIncompatible(state.clone()));
@@ -373,7 +376,23 @@ fn check_build_compatibility(ui: &MainWindow, pending: &Rc<RefCell<Option<Pendin
     ui.set_modal_visible(true);
 }
 
+fn build_changed(current: Option<&str>, installed: &str) -> bool {
+    current.is_some_and(|current| current != installed)
+}
+
 fn set_status(ui: &MainWindow, title: &str, message: &str) {
     ui.set_status_title(title.into());
     ui.set_status_message(message.into());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_changed;
+
+    #[test]
+    fn only_reports_known_different_builds() {
+        assert!(!build_changed(None, "123"));
+        assert!(!build_changed(Some("123"), "123"));
+        assert!(build_changed(Some("456"), "123"));
+    }
 }
